@@ -1,0 +1,126 @@
+
+#!/bin/sh
+
+gadget=gadget
+
+do_start(){
+    #挂载configs文件系统。
+    has_mount=$(mount -l | grep /sys/kernel/config)
+    if [[ -z  $has_mount ]];then
+        mount -t configfs none /sys/kernel/config
+	echo "mount -t configfs"
+    else
+	echo "configfs already mounted"
+    fi
+    cd /sys/kernel/config/usb_gadget
+    #进入usb_gadget，创建gadget目录后系统自动创建usb gadget相关的内容。
+    if [[ ! -d ${gadget} ]]; then
+	echo "mkdir gadget"
+        mkdir ${gadget}
+    else
+	echo "/sys/kernel/config/usb_gadget/gadget already exist"
+        
+    fi
+    #echo "cd ${dadget}"
+    cd ${gadget}
+
+    #设置EP0 Packet最大值。
+    echo "64" > bMaxPacketSize0
+    echo "64 > bMaxPacketSize0"
+    #设置USB协议版本USB2.0，Device版本号为0x0100。
+    echo 0x0200 > bcdUSB
+    echo 0x0100 > bcdDevice
+
+    #定义产品的VendorID和ProductID。
+    echo "0x888"  > idVendor
+    echo "0x888" > idProduct
+
+    #0x409对应en-us，表示后续string类型的语言。
+    if [[ ! -d strings/0x409 ]]; then
+        echo "mkdir strings/0x409"
+        mkdir strings/0x409
+    else
+        echo "strings/0x409 already exist"
+
+    fi
+
+
+    #将开发商、产品和序列号字符串写入内核。
+    echo "76543210" > strings/0x409/serialnumber
+    echo "Sunniwell"  > strings/0x409/manufacturer
+    echo "z96a"  > strings/0x409/product
+    #echo "strings/0x409/product"
+    #创建一个USB配置实例。
+    if [[ ! -d configs/config.1 ]]; then
+        mkdir configs/config.1
+    fi
+    
+    #设备从总线获取的最大电流mA。
+    echo 120 > configs/config.1/MaxPower
+
+    #定义配置描述符使用的字符串。
+    if [[ ! -d configs/config.1/strings/0x409 ]]; then
+        mkdir configs/config.1/strings/0x409
+    fi
+
+    echo "z96acfg" > configs/config.1/strings/0x409/configuration
+
+    #按照FUNC.INSTANCE格式创建功能实例。需要注意的是，一个功能如果有多个实例的话，扩展名必须用数字编号。
+    if [[ ! -d functions/ffs.adb ]]; then
+        mkdir functions/ffs.adb
+    fi
+    
+    #分配一个usb_function并加入到func_list中。后续绑定驱动到UDC时需要。
+    #if [[ ! configs/config.1/strings/0x409 ]]; theni
+    if [[ ! -e functions/ffs.adb ]]; then
+        ln -s functions/ffs.adb configs/config.1
+    fi
+    if [[ ! -d /dev/usb-ffs ]]; then
+	mkdir /dev/usb-ffs
+    fi
+    if [[ ! -d /dev/usb-ffs/adb ]]; then 
+        mkdir /dev/usb-ffs/adb
+    fi
+
+    #挂载adb设备functionfs文件系统到/dev/usb-ffs/adb，出现ep0/1/2，给adbd使用。
+    mount -t functionfs adb /dev/usb-ffs/adb
+    
+    adbd &
+
+    echo "sleep2s"
+    sleep 2s
+
+    #将gadget驱动注册到UDC上，插上USB线到电脑上，电脑就会枚举USB设备。
+    udc_name=$(ls /sys/class/udc)
+    echo UDC:$udc_name
+    echo "$udc_name" > UDC
+}
+
+do_stop() {
+	killall adbd
+	umount -f  /dev/usb-ffs/adb
+	umount -f  /sys/kernel/config
+    	#cd /sys/kernel/config/usb_gadget/${gadaget}
+    	#echo "" > UDC
+}
+
+case $1 in
+    start)
+        echo "Start hid gadget "
+        do_start
+        ;;
+    stop)
+        echo "Stop hid gadget"
+        do_stop
+        ;;
+    restart)
+	echo "Stop hid gadget"
+	do_stop
+	echo "start hid gadget"
+        do_start
+	;;
+    *)
+	    echo "Usage: $0 (stop | start | restart)"
+        ;;
+esac
+
