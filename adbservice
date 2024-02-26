@@ -53,17 +53,16 @@ do_start(){
         mkdir configs/config.1/strings/0x409
     fi
 
-    echo "z96acfg" > configs/config.1/strings/0x409/configuration
+    echo "z96a-otg" > configs/config.1/strings/0x409/configuration
 
     #按照FUNC.INSTANCE格式创建功能实例。需要注意的是，一个功能如果有多个实例的话，扩展名必须用数字编号。
-    mkdir functions/ffs.adb
+    mkdir -p functions/ffs.adb
     
     #分配一个usb_function并加入到func_list中。后续绑定驱动到UDC时需要。
     #if [[ ! configs/config.1/strings/0x409 ]]; then
     	ln -s functions/ffs.adb configs/config.1
 
-    mkdir /dev/usb-ffs
-    mkdir /dev/usb-ffs/adb
+    mkdir -p /dev/usb-ffs/adb
 
     #挂载adb设备functionfs文件系统到/dev/usb-ffs/adb，出现ep0/1/2，给adbd使用。
     mount -t functionfs adb /dev/usb-ffs/adb
