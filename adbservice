@@ -1,3 +1,4 @@
+#!/bin/bash
 gadget=gadget
 do_start(){
     mount -t configfs none /sys/kernel/config
