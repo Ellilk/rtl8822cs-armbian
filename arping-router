@@ -1,2 +1,2 @@
-#!/bin/sh
+#!/bin/bash
 arping -c 1 `ip route show | grep -i 'default via'| awk '{print $3 }'` | head -n 2 | logger
